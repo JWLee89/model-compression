@@ -47,19 +47,21 @@ def get_args() -> argparse.Namespace:
 
 if __name__ == '__main__':
     args = get_args()
+    available_devices = [torch.cuda.device(i) for i in range(torch.cuda.device_count())]
+    gpu = args.gpu
 
+    if len(available_devices) > 0:
+        if gpu not in available_devices:
+            raise RuntimeError(f'Cuda device: {gpu} not available')
+        print(f'Using gpu device: {gpu}')
+
+    device = torch.device(f'cuda:{gpu}')
     # Prepare model
-    model = vgg16(pretrained=True)
+    model = vgg16(pretrained=True).to(device)
     input_lastLayer = model.classifier[6].in_features
 
     # Change the last layer into nn.Linear
-    model.classifier[6] = nn.Linear(input_lastLayer, 10)
-
-    image = torch.randn(1, 3, 112, 224)
-    yee = model(image)
-
-    print(f'Yee: {yee.shape}')
-    print(f'Features: {model.classifier[6]}')
+    model.classifier[6] = nn.Linear(input_lastLayer, 10).to()
 
     # Prepare loss function and optimizer
     criterion = nn.CrossEntropyLoss()
@@ -72,16 +74,14 @@ if __name__ == '__main__':
     # Train the model
     for epoch in range(args.epochs):
         for i, (x_train, y_train) in enumerate(train_dataloader):
-
-            y_hat = model(x_train)
-            loss = criterion(y_hat, y_train)
+            y_hat = model(x_train.to(device))
+            loss = criterion(y_hat, y_train.to(device))
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
 
         if i % 200 == 0:
             print(f'Loss: {loss}')
-
 
     # Evaluate the model
 
