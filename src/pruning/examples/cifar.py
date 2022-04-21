@@ -43,7 +43,24 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--epochs', default=5, help='The number of epochs to train for')
     parser.add_argument('--batch_size', default=8, help='The size of the mini-batch')
 
+    # model_checkpoint
+    parser.add_argument('--save_path', default='./', help='Location to save model'
+                                                          ''
+                                                          ''
+                                                          '')
+
     return parser.parse_args()
+
+
+@torch.no_grad()
+def evaluate(model, dataloader, device):
+    model.eval()
+    print(f'Evaluating data loader')
+    for i, (x_test, y_test) in enumerate(tqdm(dataloader)):
+        x_test = x_test.to(device)
+        y_test = y_test.to(device)
+
+        # Evaluate model
 
 
 if __name__ == '__main__':
@@ -90,6 +107,9 @@ if __name__ == '__main__':
 
             if i % 200 == 0:
                 print(f'Loss: {loss}')
+
+    # Save model
+    torch.save(model.state_dict(), f'{args.path}model.pt')
 
     # Evaluate the model
 
