@@ -44,10 +44,9 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--batch_size', default=8, help='The size of the mini-batch')
 
     # model_checkpoint
-    parser.add_argument('--save_path', default='./', help='Location to save model'
-                                                          ''
-                                                          ''
-                                                          '')
+    parser.add_argument('--save_path', default='./', help='Location to save model')
+
+    # Inference model
 
     return parser.parse_args()
 
@@ -55,12 +54,59 @@ def get_args() -> argparse.Namespace:
 @torch.no_grad()
 def evaluate(model, dataloader, device):
     model.eval()
-    print(f'Evaluating data loader')
+    correct = 0
     for i, (x_test, y_test) in enumerate(tqdm(dataloader)):
         x_test = x_test.to(device)
         y_test = y_test.to(device)
 
-        # Evaluate model
+        # Calculate accuracy
+        output = model(x_test)
+        _, y_pred = torch.max(output, dim=1)
+        correct += (y_pred == y_test).float().sum()
+    model.train()
+    return 100 * correct / len(dataloader)
+
+
+def train(args, device):
+    # Prepare model
+    model = vgg16(pretrained=True)
+    input_lastLayer = model.classifier[6].in_features
+    # Change the last layer into nn.Linear
+    model.classifier[6] = nn.Linear(input_lastLayer, 10)
+    model = model.to(device)
+
+    # Prepare loss function and optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+
+    # Prepare dataloader
+    train_dataset = get_train_dataset()
+    eval_dataset = get_eval_dataset()
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=args.batch_size)
+
+    accuracy = evaluate(model, eval_dataloader, device)
+    print(f'Initial accuracy on test: {accuracy}')
+
+    # Train the model
+    for epoch in tqdm(range(args.epochs)):
+        for i, (x_train, y_train) in enumerate(tqdm(train_dataloader)):
+            x_train = x_train.to(device)
+            y_train = y_train.to(device)
+            y_hat = model(x_train)
+            loss = criterion(y_hat, y_train)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+            if i % 200 == 0:
+                print(f'Loss: {loss}')
+        # Evaluate model after each epoch
+        test_acc = evaluate(model, eval_dataloader, device)
+        print(f'Test acc: {test_acc}')
+
+    # Save model
+    torch.save(model.state_dict(), f'{args.save_path}model.pt')
 
 
 if __name__ == '__main__':
@@ -78,40 +124,12 @@ if __name__ == '__main__':
             device = available_devices[gpu]
     else:
         device = torch.device('cpu')
-    # Prepare model
-    model = vgg16(pretrained=True)
-    input_lastLayer = model.classifier[6].in_features
-    # Change the last layer into nn.Linear
-    model.classifier[6] = nn.Linear(input_lastLayer, 10)
-    model = model.to(device)
-
-    # Prepare loss function and optimizer
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-
-    # Prepare dataloader
-    train_dataset = get_train_dataset()
-    eval_dataset = get_eval_dataset()
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
 
     # Train the model
-    for epoch in tqdm(range(args.epochs)):
-        for i, (x_train, y_train) in enumerate(tqdm(train_dataloader)):
-            x_train = x_train.to(device)
-            y_train = y_train.to(device)
-            y_hat = model(x_train)
-            loss = criterion(y_hat, y_train)
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-
-            if i % 200 == 0:
-                print(f'Loss: {loss}')
-
-    # Save model
-    torch.save(model.state_dict(), f'{args.save_path}model.pt')
+    train(args, device)
 
     # Evaluate the model
+
 
     # Prune the model,
 
