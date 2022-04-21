@@ -64,7 +64,7 @@ def evaluate(model, dataloader, device):
         _, y_pred = torch.max(output, dim=1)
         correct += (y_pred == y_test).float().sum()
     model.train()
-    return 100 * correct / len(dataloader)
+    return 100 * correct / len(dataloader.dataset)
 
 
 def train(args, device):
