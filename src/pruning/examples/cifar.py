@@ -7,6 +7,7 @@ from torch.utils.data.dataloader import DataLoader
 from torchvision.models.vgg import vgg16
 from torchvision.datasets.cifar import CIFAR10
 from torchvision.transforms import transforms
+from tqdm import tqdm
 
 
 def get_train_dataset(composed_transform=transforms.Compose([
@@ -77,8 +78,8 @@ if __name__ == '__main__':
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
 
     # Train the model
-    for epoch in range(args.epochs):
-        for i, (x_train, y_train) in enumerate(train_dataloader):
+    for epoch in tqdm(range(args.epochs)):
+        for i, (x_train, y_train) in enumerate(tqdm(train_dataloader)):
             x_train = x_train.to(device)
             y_train = y_train.to(device)
             y_hat = model(x_train)
@@ -87,8 +88,8 @@ if __name__ == '__main__':
             optimizer.step()
             optimizer.zero_grad()
 
-        if i % 50 == 0:
-            print(f'Loss: {loss}')
+            if i % 200 == 0:
+                print(f'Loss: {loss}')
 
     # Evaluate the model
 
