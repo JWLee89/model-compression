@@ -2,6 +2,7 @@ import argparse
 
 import torch
 import torch.nn as nn
+import torch.nn.utils.prune as prune
 
 from torch.utils.data.dataloader import DataLoader
 from torchvision.models.vgg import vgg16
@@ -45,6 +46,8 @@ def get_args() -> argparse.Namespace:
 
     # model_checkpoint
     parser.add_argument('--save_path', default='./', help='Location to save model')
+    parser.add_argument('--train', action='store_true')
+    parser.set_defaults(train=False)
 
     # Inference model
 
@@ -109,6 +112,11 @@ def train(args, device):
     torch.save(model.state_dict(), f'{args.save_path}model.pt')
 
 
+def prune_model(model):
+    pruned_model = prune.random_unstructured(model, name='weight', amount=0.3)
+    return prune.l1_unstructured(pruned_model, name="bias", amount=3)
+
+
 if __name__ == '__main__':
     args = get_args()
     available_devices = [torch.device(f'cuda:{i}') for i in range(torch.cuda.device_count())]
@@ -126,12 +134,17 @@ if __name__ == '__main__':
         device = torch.device('cpu')
 
     # Train the model
-    train(args, device)
+    if args.train:
+        train(args, device)
 
-    # Evaluate the model
-
-
-    # Prune the model,
+    # Prune the model
+    print('Loading model')
+    model = vgg16()
+    model.load_state_dict(torch.load(f'{args.save_path}model.pt'))
+    # Evaluate the model,
+    pruned_model = prune_model(model)
+    print('Evaluating pruned model ... ')
+    evaluate(pruned_model, DataLoader(get_eval_dataset(), batch_size=args.batch_size), device)
 
     # Fine-tune the pruned model.
 
