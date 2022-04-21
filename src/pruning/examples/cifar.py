@@ -61,33 +61,33 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
     # Prepare model
-    model = vgg16(pretrained=True).to(device)
+    model = vgg16(pretrained=True)
     input_lastLayer = model.classifier[6].in_features
-
     # Change the last layer into nn.Linear
     model.classifier[6] = nn.Linear(input_lastLayer, 10)
+    model = model.to(device)
 
     # Prepare loss function and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
+    # Prepare dataloader
     train_dataset = get_train_dataset()
-    train_dataset.train_data.to(device)
-    train_dataset.train_labels.to(device)
-
     eval_dataset = get_eval_dataset()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
 
     # Train the model
     for epoch in range(args.epochs):
         for i, (x_train, y_train) in enumerate(train_dataloader):
+            x_train = x_train.to(device)
+            y_train = y_train.to(device)
             y_hat = model(x_train)
-            loss = criterion(y_hat)
+            loss = criterion(y_hat, y_train)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
 
-        if i % 200 == 0:
+        if i % 50 == 0:
             print(f'Loss: {loss}')
 
     # Evaluate the model
