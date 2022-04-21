@@ -109,7 +109,7 @@ if __name__ == '__main__':
                 print(f'Loss: {loss}')
 
     # Save model
-    torch.save(model.state_dict(), f'{args.path}model.pt')
+    torch.save(model.state_dict(), f'{args.save_path}model.pt')
 
     # Evaluate the model
 
