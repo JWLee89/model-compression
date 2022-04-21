@@ -47,35 +47,42 @@ def get_args() -> argparse.Namespace:
 
 if __name__ == '__main__':
     args = get_args()
-    available_devices = [torch.cuda.device(i) for i in range(torch.cuda.device_count())]
+    available_devices = [torch.device(f'cuda:{i}') for i in range(torch.cuda.device_count())]
     gpu = args.gpu
 
-    if len(available_devices) > 0:
-        if gpu not in available_devices:
-            raise RuntimeError(f'Cuda device: {gpu} not available')
-        print(f'Using gpu device: {gpu}')
+    print(f'available devices: {available_devices}')
 
-    device = torch.device(f'cuda:{gpu}')
+    if gpu != -1:
+        if len(available_devices) < gpu - 1:
+            raise RuntimeError(f'Cuda device: {gpu} not available')
+        else:
+            print(f'Using gpu device: {gpu}')
+            device = available_devices[gpu]
+    else:
+        device = torch.device('cpu')
     # Prepare model
     model = vgg16(pretrained=True).to(device)
     input_lastLayer = model.classifier[6].in_features
 
     # Change the last layer into nn.Linear
-    model.classifier[6] = nn.Linear(input_lastLayer, 10).to()
+    model.classifier[6] = nn.Linear(input_lastLayer, 10)
 
     # Prepare loss function and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
     train_dataset = get_train_dataset()
+    train_dataset.train_data.to(device)
+    train_dataset.train_labels.to(device)
+
     eval_dataset = get_eval_dataset()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
 
     # Train the model
     for epoch in range(args.epochs):
         for i, (x_train, y_train) in enumerate(train_dataloader):
-            y_hat = model(x_train.to(device))
-            loss = criterion(y_hat, y_train.to(device))
+            y_hat = model(x_train)
+            loss = criterion(y_hat)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
