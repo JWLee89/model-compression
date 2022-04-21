@@ -140,6 +140,10 @@ if __name__ == '__main__':
     # Prune the model
     print('Loading model')
     model = vgg16()
+    input_lastLayer = model.classifier[6].in_features
+    # Change the last layer into nn.Linear
+    model.classifier[6] = nn.Linear(input_lastLayer, 10)
+    model = model.to(device)
     model.load_state_dict(torch.load(f'{args.save_path}model.pt'))
     # Evaluate the model,
     pruned_model = prune_model(model)
